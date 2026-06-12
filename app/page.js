@@ -81,6 +81,9 @@ export default async function Home() {
           </a>{" "}
           의 최신 글 목록입니다. (RSS 기반, {revalidate / 60}분마다 자동 갱신)
         </p>
+        <p style={{ marginTop: 8 }}>
+          <a href="/archive">전체 글 목록 보기 →</a>
+        </p>
       </header>
 
       {error && (
