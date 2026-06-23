@@ -1,42 +1,28 @@
-import { XMLParser } from "fast-xml-parser";
+import { BASE_URL, getAllPostSummaries } from "./lib/naverPosts";
 
-const NAVER_BLOG_ID = "kingnation";
-const RSS_URL = `https://rss.blog.naver.com/${NAVER_BLOG_ID}.xml`;
-const BASE_URL = `https://naver-blog-index-kingnation.vercel.app`;
+function toSafeDate(value) {
+  if (!value) return new Date();
 
-async function getPostSlugs() {
-  try {
-    const res = await fetch(RSS_URL, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; RSSReader/1.0)" },
-    });
-    if (!res.ok) return [];
-    const xml = await res.text();
-    const parser = new XMLParser({ ignoreAttributes: false });
-    const data = parser.parse(xml);
-    let items = data?.rss?.channel?.item ?? [];
-    if (!Array.isArray(items)) items = [items];
-    return items
-      .map((item) => {
-        const link = item.link ?? "#";
-        const match = link.match(/\/(\d+)(?:\?|$)/);
-        return { slug: match ? match[1] : null, pubDate: item.pubDate ?? "" };
-      })
-      .filter((p) => p.slug);
-  } catch (e) {
-    return [];
-  }
+  const normalized = value
+    .replace(/\./g, "-")
+    .replace(/\s+/g, "")
+    .replace(/-$/, "");
+  const date = new Date(normalized);
+
+  return Number.isNaN(date.getTime()) ? new Date() : date;
 }
 
 export default async function sitemap() {
-  const posts = await getPostSlugs();
+  const posts = await getAllPostSummaries();
   const postUrls = posts.map((p) => ({
     url: `${BASE_URL}/posts/${p.slug}`,
-    lastModified: p.pubDate ? new Date(p.pubDate) : new Date(),
+    lastModified: toSafeDate(p.addDate),
     changeFrequency: "monthly",
     priority: 0.8,
   }));
   return [
     { url: BASE_URL, lastModified: new Date(), changeFrequency: "hourly", priority: 1 },
+    { url: `${BASE_URL}/archive`, lastModified: new Date(), changeFrequency: "daily", priority: 0.9 },
     ...postUrls,
   ];
 }

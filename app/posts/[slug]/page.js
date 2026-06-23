@@ -1,79 +1,46 @@
-import { XMLParser } from "fast-xml-parser";
 import { notFound } from "next/navigation";
+import { getPostBySlug, revalidate, stripHtml } from "../../lib/naverPosts";
 
-const NAVER_BLOG_ID = "kingnation";
-const RSS_URL = `https://rss.blog.naver.com/${NAVER_BLOG_ID}.xml`;
-export const revalidate = 3600;
-
-function stripHtml(html = "") {
-  return html.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
-}
-
-async function getAllPosts() {
-  try {
-    const res = await fetch(RSS_URL, {
-      next: { revalidate },
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; RSSReader/1.0)" },
-    });
-    if (!res.ok) return [];
-    const xml = await res.text();
-    const parser = new XMLParser({ ignoreAttributes: false });
-    const data = parser.parse(xml);
-    let items = data?.rss?.channel?.item ?? [];
-    if (!Array.isArray(items)) items = [items];
-    return items.map((item) => {
-      const link = item.link ?? "#";
-      const match = link.match(/\/(\d+)(?:\?|$)/);
-      const slug = match ? match[1] : null;
-      return {
-        title: typeof item.title === "string" ? item.title : item.title?.["#text"] ?? "(제목 없음)",
-        link,
-        slug,
-        content: typeof item.description === "string" ? item.description : item.description?.["#text"] ?? "",
-        pubDate: item.pubDate ?? "",
-      };
-    });
-  } catch (e) {
-    return [];
-  }
-}
-
-export async function generateStaticParams() {
-  const posts = await getAllPosts();
-  return posts.filter((p) => p.slug).map((p) => ({ slug: p.slug }));
-}
+export { revalidate };
 
 export async function generateMetadata({ params }) {
-  const posts = await getAllPosts();
-  const post = posts.find((p) => p.slug === params.slug);
+  const post = await getPostBySlug(params.slug);
   if (!post) return { title: "글을 찾을 수 없습니다" };
+
   return {
     title: post.title,
-    description: stripHtml(post.content).slice(0, 160),
+    description: (post.description || stripHtml(post.content)).slice(0, 160),
   };
 }
 
 export default async function PostPage({ params }) {
-  const posts = await getAllPosts();
-  const post = posts.find((p) => p.slug === params.slug);
+  const post = await getPostBySlug(params.slug);
   if (!post) notFound();
 
   return (
     <main style={{ maxWidth: 720, margin: "0 auto", padding: "40px 20px 80px" }}>
       <nav style={{ marginBottom: 24 }}>
         <a href="/" style={{ color: "#666", textDecoration: "none", fontSize: 14 }}>
-          ← 목록으로
+          목록으로
         </a>
       </nav>
       <article>
         <h1 style={{ fontSize: 26, fontWeight: 700, marginBottom: 12, lineHeight: 1.4 }}>{post.title}</h1>
-        {post.pubDate && (
-          <time style={{ display: "block", marginBottom: 24, fontSize: 13, color: "#999" }}>{post.pubDate}</time>
+        {(post.pubDate || post.addDate) && (
+          <time style={{ display: "block", marginBottom: 24, fontSize: 13, color: "#999" }}>
+            {post.pubDate || post.addDate}
+          </time>
         )}
-        <div
-          style={{ lineHeight: 1.8, color: "#333", fontSize: 16 }}
-          dangerouslySetInnerHTML={{ __html: post.content }}
-        />
+        {post.content ? (
+          <div
+            style={{ lineHeight: 1.8, color: "#333", fontSize: 16 }}
+            dangerouslySetInnerHTML={{ __html: post.content }}
+          />
+        ) : (
+          <p style={{ lineHeight: 1.8, color: "#555" }}>
+            본문을 불러오지 못했습니다. 아래 원문 링크에서 내용을 확인할 수 있습니다.
+          </p>
+        )}
         <div style={{ marginTop: 40, paddingTop: 24, borderTop: "1px solid #eee" }}>
           <a
             href={post.link}
@@ -81,7 +48,7 @@ export default async function PostPage({ params }) {
             rel="noopener noreferrer"
             style={{ color: "#03c75a", textDecoration: "none", fontSize: 14 }}
           >
-            네이버 블로그 원문 보기 →
+            네이버 블로그 원문 보기
           </a>
         </div>
       </article>

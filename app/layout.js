@@ -1,6 +1,7 @@
 export const metadata = {
-  title: "ainui 블로그 글 모음",
-  description: "ainui의 네이버 블로그 글 모음 - 최신 글 목록을 자동으로 보여줍니다.",
+  title: "김기현의 비즈니스 AI랩",
+  description: "네이버 블로그 kingnation의 글을 모은 검색 가능한 아카이브입니다.",
+  metadataBase: new URL("https://mmpi-people.kr"),
   verification: {
     google: [
       "mHel28dtfT9XNPNgr2QW2fSDc8_ys7XEIThb3m-xO8c",
